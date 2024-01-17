@@ -1,4 +1,4 @@
-## Poker Blind Timer using MAX72XX LED Panels (16 8x8 units) with ESP32 and Active BuzzerSP32 Clock and Weather Info on a MAX9712 8x8 LED Matrix Strip
+## Poker Blind Timer using MAX72XX LED Panels (16 8x8 units) with ESP32 and Active Buzzer
 
 A very simple blind timer for poker tournaments.  Includes a 16 unit string of MAX72XX LED matrices, ESP32 microcontroller, Active Buzzer to annound blind changes and a button to start, pause/unpause, advance blinds and reset.
 
