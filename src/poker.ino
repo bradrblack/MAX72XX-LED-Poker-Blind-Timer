@@ -1,10 +1,31 @@
 
+/* Poker Blind Timer using MAX72XX LED Panels (16 8x8 units) with ESP32 and Active Buzzer
+
+(C) Brad Black - 2024
+
+A very simple blind timer for poker tournaments.  Includes a 16 unit string of MAX72XX LED matrices, ESP32 microcontroller, Active Buzzer to announe blind changes and a button to start, pause/unpause, advance blinds and reset.
+
+### Button operation...
+
+* 1 click = pause / unpause
+* Double click = advance blind level and reset timer
+* Triple click = reset device (starts blind level back at 100/200)
+
+### Remote "Poker Pod" Displays Using EPS-NOW and LilyGo T-Display S3 Modules...
+
+The poker blind timer can send the current blinds over WiFi using ESP-NOW to one or more battery powered "Poker Pod" modules so that players can have additional displays or use the "Poker Pod" as a card protector.  See image below and GitHub repo here (https://github.com/bradrblack/poker-pods) 
+
+*/
+
 #include <time.h>
 #include <FastLED.h>
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include "fonts.h"
+#include <WiFi.h>
+#include "esp_wifi.h"
+#include <esp_now.h>
 
 #define buttonPin 3 // long press to reset device
 #define buzzerPin 4
@@ -53,6 +74,51 @@ struct blind blinds[17] = {
     {8000, 16000, 10},
     {10000, 20000, 10}};
 
+typedef struct msg
+{
+  int small;
+  int big;
+} msg;
+
+msg sensorData;
+
+uint8_t broadcastAddress1[] = {0x68, 0xB6, 0xB3, 0x23, 0x30, 0x64};
+uint8_t broadcastAddress2[] = {0x68, 0xB6, 0xB3, 0x21, 0x87, 0x70};
+
+esp_now_peer_info_t peerInfo;
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+
+ char macStr[18];
+  Serial.print("Packet to: ");
+  // Copies the sender mac address to a string
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.print(macStr);
+  Serial.print(" send status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+
+}
+
+void sendBlinds(){
+  sensorData.small = blinds[blind_level].small;
+  sensorData.big = blinds[blind_level].big;   
+  
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(0, (uint8_t *)&sensorData, sizeof(sensorData));
+
+    if (result == ESP_OK)
+    {
+      Serial.println("Sent with success");
+    }
+    else
+    {
+      Serial.println("Error sending the data");
+    }
+
+
+}
 void beep()
 {
 
@@ -101,6 +167,7 @@ void readbutton()
 
       showBlinds();
       showTime();
+      sendBlinds();
     }
   }
 
@@ -110,6 +177,7 @@ void readbutton()
     seconds_in_blind_level = 0;
     showBlinds();
     showTime();
+    sendBlinds();
   }
 
   if (b == 3)
@@ -199,15 +267,49 @@ void showBlinds()
 
 void setup()
 {
-
+  esp_wifi_stop();
+  delay(10);
   pinMode(buttonPin, INPUT_PULLUP); // Set button input pin
   digitalWrite(buttonPin, HIGH);
   pinMode(9, OUTPUT);
 
-  beep();
-
   Serial.begin(115200);
   // wait for serial monitor to open
+  delay(1000);
+
+  beep();
+
+  // Set device as a Wi-Fi Station & set "Low Data Rate Mode for ESPNOW"
+  WiFi.mode(WIFI_STA);
+  esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
+
+    // Init ESP-NOW
+  if (esp_now_init() != ESP_OK)
+  {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Register Callback function to get status of transmitted data
+
+  esp_now_register_send_cb(OnDataSent);
+
+
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  // register first peer  
+  memcpy(peerInfo.peer_addr, broadcastAddress1, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+  // register second peer  
+  memcpy(peerInfo.peer_addr, broadcastAddress2, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+
 
   delay(1000);
   Serial.println("About to start Parola...");
@@ -234,6 +336,10 @@ void loop()
 
   readbutton();
 
+  EVERY_N_SECONDS(5) {
+    sendBlinds();
+  }
+
   EVERY_N_MILLISECONDS(1000)
   {
     if (!paused)
@@ -250,6 +356,7 @@ void loop()
 
         showBlinds();
         showTime();
+        sendBlinds();
       }
 
       showTime();
