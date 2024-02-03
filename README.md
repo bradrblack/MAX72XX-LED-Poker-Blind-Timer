@@ -4,18 +4,17 @@
 
 A very simple blind timer for poker tournaments.  Includes a 16 unit string of MAX72XX LED matrices, ESP32 microcontroller, Active Buzzer to announe blind changes and a button to start, pause/unpause, advance blinds and reset.
 
-Button operation...
+### Button operation...
 
 * 1 click = pause / unpause
 * Double click = advance blind level and reset timer
 * Triple click = reset device (starts blind level back at 100/200)
 
-
-Remote "Poker Pod" Displays Using EPS-NOW and LilyGo T-Display S3 Modules...
+### Remote "Poker Pod" Displays Using EPS-NOW and LilyGo T-Display S3 Modules...
 
 The poker blind timer can send the current blinds over WiFi using ESP-NOW to one or more battery powered "Poker Pod" modules so that players can have additional displays or use the "Poker Pod" as a card protector.  See image below and GitHub repo here [...]
 
-Blind Levels...
+### Blind Levels...
 
 Hardcoded right now as...  (small, big, minutes)
 
