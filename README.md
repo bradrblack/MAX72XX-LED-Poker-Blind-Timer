@@ -1,4 +1,4 @@
-![poker-blind-timer](./IMG_2418.jpg)
+![poker-blind-timer](IMG_2418.jpg)
 
 ## Poker Blind Timer using MAX72XX LED Panels (16 8x8 units) with ESP32 and Active Buzzer
 
@@ -39,4 +39,4 @@ Hardcoded right now as...  (small, big, minutes)
         {8000, 16000, 10},
         {10000, 20000, 10}};
 
-![poker-pod](./IMG_2421.jpg)
+![poker-pod](IMG_2421.jpg)
