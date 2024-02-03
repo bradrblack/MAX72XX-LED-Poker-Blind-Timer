@@ -2,7 +2,7 @@
 
 (C) Brad Black - 2024
 
-A very simple blind timer for poker tournaments.  Includes a 16 unit string of MAX72XX LED matrices, ESP32 microcontroller, Active Buzzer to announe blind changes and a button to start, pause/unpause, advance blinds and reset.
+A very simple blind timer for poker tournaments.  Includes a 16 unit string of MAX72XX LED matrices, ESP32 microcontroller, Active Buzzer to announce blind changes and a button to start, pause/unpause, advance blinds and reset.
 
 ### Button operation...
 
@@ -79,7 +79,7 @@ typedef struct msg
   int big;
 } msg;
 
-msg sensorData;
+msg blindData;
 
 uint8_t broadcastAddress1[] = {0x68, 0xB6, 0xB3, 0x23, 0x30, 0x64};
 uint8_t broadcastAddress2[] = {0x68, 0xB6, 0xB3, 0x21, 0x87, 0x70};
@@ -101,11 +101,11 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 }
 
 void sendBlinds(){
-  sensorData.small = blinds[blind_level].small;
-  sensorData.big = blinds[blind_level].big;   
+  blindData.small = blinds[blind_level].small;
+  blindData.big = blinds[blind_level].big;   
   
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(0, (uint8_t *)&sensorData, sizeof(sensorData));
+  esp_err_t result = esp_now_send(0, (uint8_t *)&blindData, sizeof(blindData));
 
     if (result == ESP_OK)
     {
