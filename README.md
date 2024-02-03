@@ -10,6 +10,11 @@ Button operation...
 * Double click = advance blind level and reset timer
 * Triple click = reset device (starts blind level back at 100/200)
 
+
+Remote "Poker Pod" Displays Using EPS-NOW and LilyGo T-Display S3 Modules...
+
+The poker blind timer can send the current blinds over WiFi using ESP-NOW to one or more battery powered "Poker Pod" modules so that players can have additional displays or use the "Poker Pod" as a card protector.  See image below and GitHub repo here [...]
+
 Blind Levels...
 
 Hardcoded right now as...  (small, big, minutes)
@@ -33,3 +38,5 @@ Hardcoded right now as...  (small, big, minutes)
         {6000, 12000, 10},
         {8000, 16000, 10},
         {10000, 20000, 10}};
+
+![poker-pod](./IMG_2421.jpg)
