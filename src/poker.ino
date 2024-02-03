@@ -1,4 +1,3 @@
-
 /* Poker Blind Timer using MAX72XX LED Panels (16 8x8 units) with ESP32 and Active Buzzer
 
 (C) Brad Black - 2024
