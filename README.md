@@ -12,7 +12,7 @@ A very simple blind timer for poker tournaments.  Includes a 16 unit string of M
 
 ### Remote "Poker Pod" Displays Using EPS-NOW and LilyGo T-Display S3 Modules...
 
-The poker blind timer can send the current blinds over WiFi using ESP-NOW to one or more battery powered "Poker Pod" modules so that players can have additional displays or use the "Poker Pod" as a card protector.  See image below and GitHub repo here [...]
+The poker blind timer can send the current blinds over WiFi using ESP-NOW to one or more battery powered "Poker Pod" modules so that players can have additional displays or use the "Poker Pod" as a card protector.  See image below and GitHub repo here (https://github.com/bradrblack/poker-pods)
 
 ### Blind Levels...
 
