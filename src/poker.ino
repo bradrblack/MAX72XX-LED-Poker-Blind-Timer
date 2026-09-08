@@ -26,17 +26,17 @@ The poker blind timer can send the current blinds over WiFi using ESP-NOW to one
 #include "esp_wifi.h"
 #include <esp_now.h>
 
-#define buttonPin 3 // long press to reset device
-#define buzzerPin 4
+#define buttonPin 1 //3 // long press to reset device
+#define buzzerPin 17
 
 #include "jsbutton.h"
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
-#define MAX_DEVICES 16
+#define MAX_DEVICES 8
 
-#define CLK_PIN 0
-#define DATA_PIN 2
-#define CS_PIN 1
+#define CLK_PIN 14
+#define DATA_PIN 12
+#define CS_PIN 15
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
@@ -52,39 +52,96 @@ struct blind
   int small;
   int big;
   int duration;
+  char * smalld;
+  char * bigd;
 };
 
 struct blind blinds[17] = {
-    {0, 0, 0},
-    {100, 200, 15},
-    {200, 400, 15},
-    {300, 600, 15},
-    {400, 800, 15},
-    {500, 1000, 15},
-    {600, 1200, 15},
-    {800, 1600, 15},
-    {1000, 2000, 15},
-    {1500, 3000, 15},
-    {2000, 4000, 15},
-    {3000, 6000, 15},
-    {4000, 8000, 15},
-    {5000, 10000, 10},
-    {6000, 12000, 10},
-    {8000, 16000, 10},
-    {10000, 20000, 10}};
+    {0, 0, 0, "0", "0"},
+    {100, 200, 15, "100", "200"},
+    {200, 400, 15, "200", "400"},
+    {300, 600, 15, "300", "600"},
+    {400, 800, 15, "400", "800"},
+    {500, 1000, 15, "500", "1K"},
+    {600, 1200, 15, "600", "1.2K"},
+    {800, 1600, 15, "800", "1.6K"},
+    {1000, 2000, 15, "1K", "2K"},
+    {1500, 3000, 15, "1.5K", "3K"},
+    {2000, 4000, 15, "2K", "4K"},
+    {3000, 6000, 15, "3K", "6K"},
+    {4000, 8000, 15, "4K", "8K"},
+    {5000, 10000, 10, "5K", "10K"},
+    {6000, 12000, 10, "6K", "12K"},
+    {8000, 16000, 10, "8K", "16K"},
+    {10000, 20000, 10, "10K", "20K"}};
 
 typedef struct msg
 {
   int small;
   int big;
+  bool paused;
+  bool reset;   // true for one message right before the timer restarts itself
 } msg;
 
 msg blindData;
 
 uint8_t broadcastAddress1[] = {0x68, 0xB6, 0xB3, 0x23, 0x30, 0x64};
 uint8_t broadcastAddress2[] = {0x68, 0xB6, 0xB3, 0x21, 0x87, 0x70};
+uint8_t broadcastAddress3[] = {0xF0, 0x9E, 0x9E, 0x32, 0x10, 0x68};  // BLING pod
 
 esp_now_peer_info_t peerInfo;
+
+typedef struct cmdMsg
+{
+  uint8_t cmd; // 1 = start/pause, 2 = advance blind
+} cmdMsg;
+#define CMD_START_PAUSE 1
+#define CMD_ADVANCE_BLIND 2
+
+void showPaused();
+void showBlinds();
+void showTime();
+void sendBlinds();
+
+// Arduino-ESP32 3.x changed the ESP-NOW recv callback signature
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+void OnPodCommand(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len)
+#else
+void OnPodCommand(const uint8_t *mac, const uint8_t *incomingData, int len)
+#endif
+{
+  if (len < (int)sizeof(cmdMsg))
+    return;
+
+  cmdMsg cmd;
+  memcpy(&cmd, incomingData, sizeof(cmd));
+
+  if (cmd.cmd == CMD_START_PAUSE)
+  {
+    paused = !paused;
+    Serial.println(paused);
+    if (paused)
+    {
+      showPaused();
+    }
+    else
+    {
+      P.displayClear();
+      showBlinds();
+      showTime();
+    }
+    sendBlinds(); // so every pod (including the one that just asked) sees the new state
+  }
+  else if (cmd.cmd == CMD_ADVANCE_BLIND)
+  {
+    if (blind_level < 16)
+      blind_level++;
+    seconds_in_blind_level = 0;
+    showBlinds();
+    showTime();
+    sendBlinds();
+  }
+}
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
@@ -102,8 +159,9 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 
 void sendBlinds(){
   blindData.small = blinds[blind_level].small;
-  blindData.big = blinds[blind_level].big;   
-  
+  blindData.big = blinds[blind_level].big;
+  blindData.paused = paused;
+
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(0, (uint8_t *)&blindData, sizeof(blindData));
 
@@ -172,6 +230,7 @@ void readbutton()
 
   if (b == 2)
   { // A double-click event to advance blind
+    if (blind_level < 16)
     blind_level++;
     seconds_in_blind_level = 0;
     showBlinds();
@@ -181,7 +240,8 @@ void readbutton()
 
   if (b == 3)
   { // A hold event to RESTART
-
+    blindData.reset = true;
+    esp_now_send(0, (uint8_t *)&blindData, sizeof(blindData));
     ESP.restart();
   }
 }
@@ -196,7 +256,7 @@ void showMessage(char *m)
   }
   else if (MAX_DEVICES == 8)
   {
-    P.setZone(3, 0, 15);
+    P.setZone(3, 0, 7);
   }
   else if (MAX_DEVICES == 6)
   {
@@ -214,7 +274,7 @@ void showPaused()
 
   P.setFont(1, nullptr);
 
-  P.displayZoneText(1, "Paused", PA_LEFT, 10, 250, PA_SCROLL_LEFT);
+  P.displayZoneText(1, "   ||", PA_LEFT, 10, 250, PA_SCROLL_LEFT);
 
   while (!P.getZoneStatus(1))
     P.displayAnimate();
@@ -247,19 +307,20 @@ void showTime()
 
   Serial.println(buf2);
 
-  P.displayZoneText(1, buf2, PA_RIGHT, 5, 10, PA_PRINT, PA_NO_EFFECT);
+  P.displayZoneText(1, buf2, PA_LEFT, 5, 10, PA_PRINT, PA_NO_EFFECT);
   P.displayAnimate();
 }
 
 void showBlinds()
 {
 
-  sprintf(buf, "%d / %d", blinds[blind_level].small, blinds[blind_level].big);
+  sprintf(buf, "%s:%s", blinds[blind_level].smalld, blinds[blind_level].bigd);
+  Serial.println(buf);
 
-  P.displayZoneText(0, buf, PA_LEFT, 5, 5, PA_PRINT, PA_NO_EFFECT);
+  //P.displayZoneText(0, buf, PA_LEFT, 5, 5, PA_PRINT, PA_NO_EFFECT);
 
-  while (!P.getZoneStatus(0))
-    P.displayAnimate();
+  //while (!P.getZoneStatus(0))
+    //P.displayAnimate();
 
   P.displayZoneText(0, buf, PA_LEFT, 5, 10, PA_PRINT, PA_NO_EFFECT);
 }
@@ -292,32 +353,41 @@ void setup()
   // Register Callback function to get status of transmitted data
 
   esp_now_register_send_cb(OnDataSent);
+  esp_now_register_recv_cb(OnPodCommand);
 
 
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
-  // register first peer  
+  // register first peer
   memcpy(peerInfo.peer_addr, broadcastAddress1, 6);
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
   }
-  // register second peer  
+  // register second peer
   memcpy(peerInfo.peer_addr, broadcastAddress2, 6);
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
   }
+  // register third peer (BLING pod)
+  memcpy(peerInfo.peer_addr, broadcastAddress3, 6);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
 
+  Serial.print("Timer MAC address: ");
+  Serial.println(WiFi.macAddress());
 
   delay(1000);
   Serial.println("About to start Parola...");
 
   P.begin(16);
 
-  P.setZone(0, 8, 15);
+  P.setZone(0, 3, 7);
   P.setFont(0, numeric7Seg);
-  P.setZone(1, 0, 7);
+  P.setZone(1, 0, 2);
   P.setFont(1, numeric7Seg);
 
   P.displayClear();
@@ -327,7 +397,7 @@ void setup()
 
   Serial.println("Starting...");
 
-  showMessage("Shuffle Up and Deal...");
+  showMessage("ShuffleUp&Deal");
 }
 
 void loop()
